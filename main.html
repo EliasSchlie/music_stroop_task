@@ -43,18 +43,19 @@
       return array;
     }
 
-    // Two rounds: first round = randomized conditions; second round = randomized conditions.
+    // Two rounds: first and second round are independently randomized.
     const firstRound = shuffle(conditions.slice());
     const secondRound = shuffle(conditions.slice());
     const fullBlockOrder = firstRound.concat(secondRound); // Total 8 blocks
 
-    const trialsPerBlock = 10;
+    const trialsPerBlock = 1;
     const wordsArray = ["RED", "BLUE", "GREEN", "YELLOW"];
     const colorsArray = ["red", "blue", "green", "yellow"];
     const results = [];
 
     let currentBlock = 0;
     let currentTrial = 0;
+    let breakDone = false; // Flag to make sure the break is shown only once.
     const container = document.getElementById("experiment-container");
     const bgMusic = document.getElementById("bg-music");
 
@@ -74,21 +75,23 @@
       nextBlock();
     }
 
-    // Begin next block.
+    // Begin the next block.
     function nextBlock() {
-      // Check if we have finished the first round.
-      if (currentBlock === conditions.length) {
-        // Display a break screen if first round (4 blocks) is complete.
+      // When the first round (first 4 blocks) is done, show a break screen before continuing.
+      if (currentBlock === conditions.length && !breakDone) {
         container.innerHTML = `
           <h2>Break Time</h2>
           <p>Take a short break. When you are ready, click continue to start the next round.</p>
           <button id="continue-btn">Continue</button>
         `;
-        document.getElementById("continue-btn").addEventListener("click", nextBlock);
+        document.getElementById("continue-btn").addEventListener("click", () => {
+          breakDone = true;
+          nextBlock();
+        });
         return;
       }
-
-      // Check if experiment is complete.
+      
+      // End experiment if all blocks are finished.
       if (currentBlock >= fullBlockOrder.length) {
         endExperiment();
         return;
@@ -100,6 +103,7 @@
         <p>Click to begin this block and start the background music.</p>
         <button id="start-block-btn">Start Block</button>
       `;
+
       document.getElementById("start-block-btn").addEventListener("click", () => {
         bgMusic.src = condition.song;
         bgMusic.play().then(() => {
@@ -114,7 +118,7 @@
 
     // Present the next trial.
     function nextTrial() {
-      // Check if block is complete.
+      // Check if the current block is complete.
       if (currentTrial >= trialsPerBlock) {
         bgMusic.pause();
         bgMusic.currentTime = 0;
@@ -127,7 +131,7 @@
         return;
       }
 
-      // Randomly choose a word and a color independently.
+      // Randomly choose a word and a display color independently.
       const word = wordsArray[Math.floor(Math.random() * wordsArray.length)];
       const color = colorsArray[Math.floor(Math.random() * colorsArray.length)];
       const correctKey = color[0].toUpperCase(); // R, B, G, Y
@@ -153,7 +157,7 @@
         });
 
         document.removeEventListener("keydown", handleKey);
-        // Add a brief inter-trial blank break (500ms).
+        // Insert a short 500ms break (blank screen) before the next trial.
         container.innerHTML = '';
         setTimeout(() => {
           currentTrial++;
@@ -163,7 +167,7 @@
       document.addEventListener("keydown", handleKey);
     }
 
-    // End of experiment: download the CSV.
+    // End of experiment: allow the user to download their results as a CSV.
     function endExperiment() {
       container.innerHTML = `
         <h2>Experiment Complete</h2>
