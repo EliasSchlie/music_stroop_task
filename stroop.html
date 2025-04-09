@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Stroop Task with Working Audio</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 40px;
+    }
+    #stimulus {
+      font-size: 48px;
+      margin: 20px;
+    }
+    button {
+      font-size: 18px;
+      padding: 10px 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="experiment-container"></div>
+
+  <!-- Audio element is present from the start -->
+  <audio id="bg-music" loop></audio>
+
+  <script>
+    // Define the four conditions.
+    const conditions = [
+      { song: 'Gangnam_Style_Korean.MP3', conditionName: "Condition 1" },
+      { song: 'Gangnam_Style_English.MP3', conditionName: "Condition 2" },
+      { song: 'Gangnam_Style_Instrumental.MP3', conditionName: "Condition 3" },
+      { song: '01-White-Noise-10min.MP3', conditionName: "Condition 4" }
+    ];
+
+    // Fisher-Yates shuffle.
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // Two rounds: first round = randomized conditions; second round = randomized conditions.
+    const firstRound = shuffle(conditions.slice());
+    const secondRound = shuffle(conditions.slice());
+    const fullBlockOrder = firstRound.concat(secondRound); // Total 8 blocks
+
+    const trialsPerBlock = 10;
+    const wordsArray = ["RED", "BLUE", "GREEN", "YELLOW"];
+    const colorsArray = ["red", "blue", "green", "yellow"];
+    const results = [];
+
+    let currentBlock = 0;
+    let currentTrial = 0;
+    const container = document.getElementById("experiment-container");
+    const bgMusic = document.getElementById("bg-music");
+
+    // Display initial instructions.
+    function showInstructions() {
+      container.innerHTML = `
+        <h1>Stroop Task Experiment</h1>
+        <p>Press the key matching the <strong>COLOR</strong> of the word:</p>
+        <p>R = Red, B = Blue, G = Green, Y = Yellow</p>
+        <button id="start-btn">Start Experiment</button>
+      `;
+      document.getElementById("start-btn").addEventListener("click", startExperiment);
+    }
+
+    // Start the experiment.
+    function startExperiment() {
+      nextBlock();
+    }
+
+    // Begin next block.
+    function nextBlock() {
+      // Check if we have finished the first round.
+      if (currentBlock === conditions.length) {
+        // Display a break screen if first round (4 blocks) is complete.
+        container.innerHTML = `
+          <h2>Break Time</h2>
+          <p>Take a short break. When you are ready, click continue to start the next round.</p>
+          <button id="continue-btn">Continue</button>
+        `;
+        document.getElementById("continue-btn").addEventListener("click", nextBlock);
+        return;
+      }
+
+      // Check if experiment is complete.
+      if (currentBlock >= fullBlockOrder.length) {
+        endExperiment();
+        return;
+      }
+
+      const condition = fullBlockOrder[currentBlock];
+      container.innerHTML = `
+        <h2>${condition.conditionName}</h2>
+        <p>Click to begin this block and start the background music.</p>
+        <button id="start-block-btn">Start Block</button>
+      `;
+      document.getElementById("start-block-btn").addEventListener("click", () => {
+        bgMusic.src = condition.song;
+        bgMusic.play().then(() => {
+          currentTrial = 0;
+          nextTrial();
+        }).catch(err => {
+          alert("Browser blocked audio playback. Please click the button again.");
+          console.error("Audio play error:", err);
+        });
+      });
+    }
+
+    // Present the next trial.
+    function nextTrial() {
+      // Check if block is complete.
+      if (currentTrial >= trialsPerBlock) {
+        bgMusic.pause();
+        bgMusic.currentTime = 0;
+        currentBlock++;
+        container.innerHTML = `
+          <p>Block complete. Click to continue to the next block.</p>
+          <button id="next-block-btn">Next Block</button>
+        `;
+        document.getElementById("next-block-btn").addEventListener("click", nextBlock);
+        return;
+      }
+
+      // Randomly choose a word and a color independently.
+      const word = wordsArray[Math.floor(Math.random() * wordsArray.length)];
+      const color = colorsArray[Math.floor(Math.random() * colorsArray.length)];
+      const correctKey = color[0].toUpperCase(); // R, B, G, Y
+      const trialStart = performance.now();
+
+      container.innerHTML = `
+        <div id="stimulus" style="color:${color};">${word}</div>
+        <p>R = Red, B = Blue, G = Green, Y = Yellow</p>
+      `;
+
+      // Record key response.
+      function handleKey(event) {
+        const response = event.key.toUpperCase();
+        const correct = response === correctKey;
+        const rt = performance.now() - trialStart;
+
+        results.push({
+          condition: fullBlockOrder[currentBlock].conditionName,
+          trial: currentTrial + 1,
+          word, color,
+          response, correct,
+          reactionTime: rt.toFixed(2)
+        });
+
+        document.removeEventListener("keydown", handleKey);
+        // Add a brief inter-trial blank break (500ms).
+        container.innerHTML = '';
+        setTimeout(() => {
+          currentTrial++;
+          nextTrial();
+        }, 500);
+      }
+      document.addEventListener("keydown", handleKey);
+    }
+
+    // End of experiment: download the CSV.
+    function endExperiment() {
+      container.innerHTML = `
+        <h2>Experiment Complete</h2>
+        <p>Click below to download your results as a CSV file.</p>
+        <button id="download-btn">Download Results</button>
+      `;
+      document.getElementById("download-btn").addEventListener("click", downloadCSV);
+    }
+
+    // Create and download the CSV file.
+    function downloadCSV() {
+      const header = "Condition,Trial,Word,Color,Response,Correct,ReactionTime\n";
+      const rows = results.map(r =>
+        `${r.condition},${r.trial},${r.word},${r.color},${r.response},${r.correct},${r.reactionTime}`
+      ).join("\n");
+
+      const blob = new Blob([header + rows], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "stroop_results.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    window.onload = showInstructions;
+  </script>
+</body>
+</html>

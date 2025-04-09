@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Play Song MVP</title>
+</head>
+<body>
+  <h1>Play a Song</h1>
+  <p>Click the button to play the song.</p>
+  <button onclick="playSong()">Play Song</button>
+
+  <audio id="mySong" src="Gangnam_Style_Korean.MP3"></audio>
+
+  <script>
+    function playSong() {
+      const song = document.getElementById("mySong");
+      song.play().catch(error => {
+        console.error("Playback failed:", error);
+      });
+    }
+  </script>
+</body>
+</html>
