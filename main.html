@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Stroop Task with Working Audio</title>
+  <title>Stroop Task with Practice Trial and Working Audio</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -34,7 +34,7 @@
       { song: '01-White-Noise-10min.mp3', conditionName: "Condition 4" }
     ];
 
-    // Fisher-Yates shuffle.
+    // Fisher-Yates shuffle function.
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -55,43 +55,75 @@
 
     let currentBlock = 0;
     let currentTrial = 0;
-    let breakDone = false; // Flag to make sure the break is shown only once.
+    let breakDone = false; // Flag for break between rounds.
     const container = document.getElementById("experiment-container");
     const bgMusic = document.getElementById("bg-music");
 
-    // Display initial instructions.
+    // Display initial instructions, including notice of a practice trial.
     function showInstructions() {
       container.innerHTML = `
         <h1>Stroop Task Experiment</h1>
-        <p>Press the key matching the <strong>COLOR</strong> of the word:</p>
+        <p>In this experiment you will see words displayed in different colors.</p>
+        <p>Your task: Press the key corresponding to the <strong>COLOR</strong> of the word.</p>
         <p>R = Red, B = Blue, G = Green, Y = Yellow</p>
+        <p>Before the main experiment, you will complete one practice trial with feedback.</p>
         <button id="start-btn">Start Experiment</button>
       `;
-      document.getElementById("start-btn").addEventListener("click", startExperiment);
+      document.getElementById("start-btn").addEventListener("click", runPracticeTrial);
     }
 
-    // Start the experiment.
-    function startExperiment() {
-      nextBlock();
+    // Run a single practice trial (without music).
+    function runPracticeTrial() {
+      // Randomly choose a word and a display color independently.
+      const word = wordsArray[Math.floor(Math.random() * wordsArray.length)];
+      const color = colorsArray[Math.floor(Math.random() * colorsArray.length)];
+      const correctKey = color[0].toUpperCase(); // Expected key: R, B, G, Y
+      const trialStart = performance.now();
+
+      container.innerHTML = `
+        <h2>Practice Trial</h2>
+        <div id="stimulus" style="color:${color};">${word}</div>
+        <p>Press the key for the COLOR shown (R, B, G, Y).</p>
+      `;
+
+      // Listen for the key response.
+      function handlePracticeKey(event) {
+        const response = event.key.toUpperCase();
+        const correct = response === correctKey;
+        const rt = performance.now() - trialStart;
+        document.removeEventListener("keydown", handlePracticeKey);
+
+        // Show feedback.
+        container.innerHTML = `
+          <h2>Practice Feedback</h2>
+          <p>You pressed: <strong>${response}</strong></p>
+          <p>${correct ? "Correct!" : "Incorrect."} The correct answer was <strong>${correctKey}</strong>.</p>
+          <p>Your reaction time was ${rt.toFixed(2)} ms.</p>
+          <button id="continue-btn">Continue to Experiment</button>
+        `;
+
+        document.getElementById("continue-btn").addEventListener("click", nextBlock);
+      }
+      document.addEventListener("keydown", handlePracticeKey);
     }
 
-    // Begin the next block.
+    // Begin the next experimental block.
     function nextBlock() {
-      // When the first round (first 4 blocks) is done, show a break screen before continuing.
+      // When the first round (first 4 blocks) is complete, show a break screen before continuing.
       if (currentBlock === conditions.length && !breakDone) {
         container.innerHTML = `
           <h2>Break Time</h2>
           <p>Take a short break. When you are ready, click continue to start the next round.</p>
-          <button id="continue-btn">Continue</button>
+          <button id="continue-break-btn">Continue</button>
         `;
-        document.getElementById("continue-btn").addEventListener("click", () => {
+        document.getElementById("continue-break-btn").addEventListener("click", () => {
           breakDone = true;
           nextBlock();
         });
         return;
       }
       
-      // End experiment if all blocks are finished.
+      // End the experiment if all blocks are finished.
       if (currentBlock >= fullBlockOrder.length) {
         endExperiment();
         return;
@@ -103,7 +135,6 @@
         <p>Click to begin this block and start the background music.</p>
         <button id="start-block-btn">Start Block</button>
       `;
-
       document.getElementById("start-block-btn").addEventListener("click", () => {
         bgMusic.src = condition.song;
         bgMusic.play().then(() => {
@@ -116,7 +147,7 @@
       });
     }
 
-    // Present the next trial.
+    // Present the next trial in the current block.
     function nextTrial() {
       // Check if the current block is complete.
       if (currentTrial >= trialsPerBlock) {
@@ -134,7 +165,7 @@
       // Randomly choose a word and a display color independently.
       const word = wordsArray[Math.floor(Math.random() * wordsArray.length)];
       const color = colorsArray[Math.floor(Math.random() * colorsArray.length)];
-      const correctKey = color[0].toUpperCase(); // R, B, G, Y
+      const correctKey = color[0].toUpperCase(); // Expected key.
       const trialStart = performance.now();
 
       container.innerHTML = `
@@ -142,7 +173,6 @@
         <p>R = Red, B = Blue, G = Green, Y = Yellow</p>
       `;
 
-      // Record key response.
       function handleKey(event) {
         const response = event.key.toUpperCase();
         const correct = response === correctKey;
@@ -157,7 +187,7 @@
         });
 
         document.removeEventListener("keydown", handleKey);
-        // Insert a short 500ms break (blank screen) before the next trial.
+        // Insert a short 500ms blank interval before the next trial.
         container.innerHTML = '';
         setTimeout(() => {
           currentTrial++;
@@ -167,12 +197,14 @@
       document.addEventListener("keydown", handleKey);
     }
 
-    // End of experiment: allow the user to download their results as a CSV.
+    // End of experiment: allow the user to download their results as a CSV file.
     function endExperiment() {
       container.innerHTML = `
         <h2>Experiment Complete</h2>
         <p>Click below to download your results as a CSV file.</p>
         <button id="download-btn">Download Results</button>
+        <br>
+        <p>Please send the result to e.p.schlie@tilburguniversity.edu</p>
       `;
       document.getElementById("download-btn").addEventListener("click", downloadCSV);
     }
