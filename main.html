@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Stroop Task with Practice Trial and Working Audio</title>
+  <title>Stroop Task with Practice & Audio Check</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -16,25 +16,29 @@
     button {
       font-size: 18px;
       padding: 10px 20px;
+      margin: 10px;
     }
   </style>
 </head>
 <body>
   <div id="experiment-container"></div>
-
+  
   <!-- Audio element is present from the start -->
   <audio id="bg-music" loop></audio>
-
+  
   <script>
-    // Define the four conditions.
+    /*******************
+     * Experiment Setup
+     *******************/
+    // Define conditions (four blocks). One of these is white noise.
     const conditions = [
       { song: 'korean.mp3', conditionName: "Condition 1" },
       { song: 'english.mp3', conditionName: "Condition 2" },
       { song: 'instrumental.mp3', conditionName: "Condition 3" },
       { song: '01-White-Noise-10min.mp3', conditionName: "Condition 4" }
     ];
-
-    // Fisher-Yates shuffle function.
+    
+    // Fisher-Yates shuffle.
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -42,74 +46,140 @@
       }
       return array;
     }
-
+    
     // Two rounds: first and second round are independently randomized.
     const firstRound = shuffle(conditions.slice());
     const secondRound = shuffle(conditions.slice());
     const fullBlockOrder = firstRound.concat(secondRound); // Total 8 blocks
-
+    
     const trialsPerBlock = 10;
     const wordsArray = ["RED", "BLUE", "GREEN", "YELLOW"];
     const colorsArray = ["red", "blue", "green", "yellow"];
     const results = [];
-
+    
+    // Variables for experiment flow.
     let currentBlock = 0;
     let currentTrial = 0;
-    let breakDone = false; // Flag for break between rounds.
+    let breakDone = false; // For break between rounds.
+    
+    // Variables for practice trials until 3 in a row are correct.
+    let practiceCorrectStreak = 0;
+    
     const container = document.getElementById("experiment-container");
     const bgMusic = document.getElementById("bg-music");
-
-    // Display initial instructions, including notice of a practice trial.
+    
+    /*******************
+     * Audio Check Page
+     *******************/
+    function showAudioCheck() {
+      container.innerHTML = `
+        <h1>Audio Check</h1>
+        <p>Please check that you can hear the white noise.</p>
+        <button id="start-audio">
+          Start audio
+        </button>
+        <button id="confirm-audio-btn">
+          I confirm that I can hear the audio and that I will not turn off audio during experiment (very important)
+        </button>
+      `;
+      // On click, set the audio to white noise and attempt playback.
+      document.getElementById("start-audio").addEventListener("click", () => {
+        bgMusic.src = '01-White-Noise-10min.mp3';
+        bgMusic.play().then(() => {
+          // Let the white noise play briefly, then show instructions.
+          setTimeout(() => {
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+          }, 2000); // 2 seconds of white noise playback.
+        }).catch(err => {
+          alert("Audio playback failed. Please try again.");
+          console.error("Audio play error:", err);
+        });
+      });
+      document.getElementById("confirm-audio-btn").addEventListener("click", () => {
+        showInstructions();
+      });
+    }
+    
+    /*******************
+     * Instruction Page
+     *******************/
     function showInstructions() {
       container.innerHTML = `
         <h1>Stroop Task Experiment</h1>
         <p>In this experiment you will see words displayed in different colors.</p>
         <p>Your task: Press the key corresponding to the <strong>COLOR</strong> of the word.</p>
         <p>R = Red, B = Blue, G = Green, Y = Yellow</p>
-        <p>Before the main experiment, you will complete one practice trial with feedback.</p>
-        <button id="start-btn">Start Experiment</button>
+        <p>Before the main experiment, you will complete practice trials until you get 3 in a row correct.</p>
+        <button id="start-btn">Start Practice Trials</button>
       `;
       document.getElementById("start-btn").addEventListener("click", runPracticeTrial);
     }
-
-    // Run a single practice trial (without music).
+    
+    /*******************
+     * Practice Trials
+     *******************/
     function runPracticeTrial() {
-      // Randomly choose a word and a display color independently.
+      // Reset the streak counter.
+      practiceCorrectStreak = 0;
+      nextPracticeTrial();
+    }
+    
+    function nextPracticeTrial() {
+      // Present a practice trial.
       const word = wordsArray[Math.floor(Math.random() * wordsArray.length)];
       const color = colorsArray[Math.floor(Math.random() * colorsArray.length)];
-      const correctKey = color[0].toUpperCase(); // Expected key: R, B, G, Y
+      const correctKey = color[0].toUpperCase(); // Expected key.
       const trialStart = performance.now();
-
+    
       container.innerHTML = `
         <h2>Practice Trial</h2>
+        <p>Consecutive correct: ${practiceCorrectStreak} / 3</p>
         <div id="stimulus" style="color:${color};">${word}</div>
         <p>Press the key for the COLOR shown (R, B, G, Y).</p>
       `;
-
-      // Listen for the key response.
+    
       function handlePracticeKey(event) {
         const response = event.key.toUpperCase();
         const correct = response === correctKey;
         const rt = performance.now() - trialStart;
         document.removeEventListener("keydown", handlePracticeKey);
-
+    
+        // Update the streak: if correct, add one; if not, reset streak.
+        if (correct) {
+          practiceCorrectStreak++;
+        } else {
+          practiceCorrectStreak = 0;
+        }
+    
         // Show feedback.
         container.innerHTML = `
           <h2>Practice Feedback</h2>
           <p>You pressed: <strong>${response}</strong></p>
           <p>${correct ? "Correct!" : "Incorrect."} The correct answer was <strong>${correctKey}</strong>.</p>
           <p>Your reaction time was ${rt.toFixed(2)} ms.</p>
-          <button id="continue-btn">Continue to Experiment</button>
+          <p>Consecutive correct: ${practiceCorrectStreak} / 3</p>
+          <button id="next-practice-btn">${practiceCorrectStreak >= 3 ? "Start Main Experiment" : "Next Practice Trial"}</button>
         `;
-
-        document.getElementById("continue-btn").addEventListener("click", nextBlock);
+        document.getElementById("next-practice-btn").addEventListener("click", () => {
+          if (practiceCorrectStreak >= 3) {
+            // Proceed to main experiment.
+            nextBlock();
+          } else {
+            // Continue practice.
+            nextPracticeTrial();
+          }
+        });
       }
       document.addEventListener("keydown", handlePracticeKey);
     }
-
+    
+    /*******************
+     * Main Experiment Blocks
+     *******************/
     // Begin the next experimental block.
     function nextBlock() {
-      // When the first round (first 4 blocks) is complete, show a break screen before continuing.
+      // Check for a break between the first and second rounds.
       if (currentBlock === conditions.length && !breakDone) {
         container.innerHTML = `
           <h2>Break Time</h2>
@@ -123,12 +193,12 @@
         return;
       }
       
-      // End the experiment if all blocks are finished.
+      // End experiment if all blocks are finished.
       if (currentBlock >= fullBlockOrder.length) {
         endExperiment();
         return;
       }
-
+    
       const condition = fullBlockOrder[currentBlock];
       container.innerHTML = `
         <h2>${condition.conditionName}</h2>
@@ -146,7 +216,7 @@
         });
       });
     }
-
+    
     // Present the next trial in the current block.
     function nextTrial() {
       // Check if the current block is complete.
@@ -161,23 +231,23 @@
         document.getElementById("next-block-btn").addEventListener("click", nextBlock);
         return;
       }
-
-      // Randomly choose a word and a display color independently.
+    
+      // Randomly choose a word and its display color independently.
       const word = wordsArray[Math.floor(Math.random() * wordsArray.length)];
       const color = colorsArray[Math.floor(Math.random() * colorsArray.length)];
       const correctKey = color[0].toUpperCase(); // Expected key.
       const trialStart = performance.now();
-
+    
       container.innerHTML = `
         <div id="stimulus" style="color:${color};">${word}</div>
         <p>R = Red, B = Blue, G = Green, Y = Yellow</p>
       `;
-
+    
       function handleKey(event) {
         const response = event.key.toUpperCase();
         const correct = response === correctKey;
         const rt = performance.now() - trialStart;
-
+    
         results.push({
           condition: fullBlockOrder[currentBlock].conditionName,
           trial: currentTrial + 1,
@@ -185,7 +255,7 @@
           response, correct,
           reactionTime: rt.toFixed(2)
         });
-
+    
         document.removeEventListener("keydown", handleKey);
         // Insert a short 500ms blank interval before the next trial.
         container.innerHTML = '';
@@ -196,9 +266,29 @@
       }
       document.addEventListener("keydown", handleKey);
     }
-
-    // End of experiment: allow the user to download their results as a CSV file.
+    
+    /*******************
+     * End Experiment & Audio Feedback Question
+     *******************/
     function endExperiment() {
+      // First, ask the final question about audio.
+      container.innerHTML = `
+        <h2>Final Question</h2>
+        <p>Did you hear audio in every trial?</p>
+        <button id="audio-yes">Yes, I heard audio in every trial</button>
+        <button id="audio-no">No, I did not hear audio in every trial</button>
+      `;
+      document.getElementById("audio-yes").addEventListener("click", function() {
+        results.push({ finalAudioFeedback: "Yes" });
+        showDownloadScreen();
+      });
+      document.getElementById("audio-no").addEventListener("click", function() {
+        results.push({ finalAudioFeedback: "No" });
+        showDownloadScreen();
+      });
+    }
+    
+    function showDownloadScreen() {
       container.innerHTML = `
         <h2>Experiment Complete</h2>
         <p>Click below to download your results as a CSV file.</p>
@@ -208,14 +298,16 @@
       `;
       document.getElementById("download-btn").addEventListener("click", downloadCSV);
     }
-
-    // Create and download the CSV file.
+    
+    /*******************
+     * CSV Download
+     *******************/
     function downloadCSV() {
       const header = "Condition,Trial,Word,Color,Response,Correct,ReactionTime\n";
       const rows = results.map(r =>
-        `${r.condition},${r.trial},${r.word},${r.color},${r.response},${r.correct},${r.reactionTime}`
+        `${r.condition || ""},${r.trial || ""},${r.word || ""},${r.color || ""},${r.response || ""},${r.correct || ""},${r.reactionTime || ""}`
       ).join("\n");
-
+    
       const blob = new Blob([header + rows], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -225,8 +317,11 @@
       a.click();
       document.body.removeChild(a);
     }
-
-    window.onload = showInstructions;
+    
+    /*******************
+     * Start
+     *******************/
+    window.onload = showAudioCheck;
   </script>
 </body>
 </html>
