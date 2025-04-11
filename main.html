@@ -325,9 +325,9 @@
      * CSV Download
      *******************/
     function downloadCSV() {
-      const header = "Condition,Trial,Word,Color,Response,Correct,ReactionTime\n";
+      const header = "ParticipantNumber,Condition,Trial,Word,Color,Response,Correct,ReactionTime\n";
       const rows = results.map(r =>
-        `${participantNumber},${r.condition || ""},${r.trial || ""},${r.word || ""},${r.color || ""},${r.response || ""},${r.correct || ""},${r.reactionTime || ""}`
+        `${participantNumber},${r.condition || ""},${r.trial || ""},${r.word || ""},${r.color || ""},${r.response || ""},${r.correct === true ? "TRUE" : "FALSE"},${r.reactionTime || ""}`
       ).join("\n");
     
       const blob = new Blob([header + rows], { type: 'text/csv' });
