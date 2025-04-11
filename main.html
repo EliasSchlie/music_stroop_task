@@ -68,6 +68,27 @@
     const container = document.getElementById("experiment-container");
     const bgMusic = document.getElementById("bg-music");
     
+    function showParticipantEntry() {
+      container.innerHTML = `
+        <h1>Welcome to the Stroop Task</h1>
+        <p>Please add your participant number.</p>
+        <p>If you don't have one, get it here: <a href="https://tilburghumanities.eu.qualtrics.com/jfe/form/SV_0fyIkRHaD1mdpqK" target="_blank">link</a></p>
+        <input type="text" id="participant-input" placeholder="Enter participant number" style="font-size:18px; padding:8px;">
+        <br><br>
+        <button id="submit-participant-btn">Continue</button>
+      `;
+      document.getElementById("submit-participant-btn").addEventListener("click", () => {
+        const input = document.getElementById("participant-input").value.trim();
+        if (input === "") {
+          alert("Please enter a participant number.");
+        } else {
+          participantNumber = input;
+          showAudioCheck();
+        }
+      });
+    }
+
+
     /*******************
      * Audio Check Page
      *******************/
@@ -294,7 +315,8 @@
         <p>Click below to download your results as a CSV file.</p>
         <button id="download-btn">Download Results</button>
         <br>
-        <p>Please send the result to e.p.schlie@tilburguniversity.edu</p>
+        <p>Please send the result to </p>
+        <a href="mailto:e.p.schlie@tilburguniversity.edu"></a>
       `;
       document.getElementById("download-btn").addEventListener("click", downloadCSV);
     }
@@ -305,7 +327,7 @@
     function downloadCSV() {
       const header = "Condition,Trial,Word,Color,Response,Correct,ReactionTime\n";
       const rows = results.map(r =>
-        `${r.condition || ""},${r.trial || ""},${r.word || ""},${r.color || ""},${r.response || ""},${r.correct || ""},${r.reactionTime || ""}`
+        `${participantNumber},${r.condition || ""},${r.trial || ""},${r.word || ""},${r.color || ""},${r.response || ""},${r.correct || ""},${r.reactionTime || ""}`
       ).join("\n");
     
       const blob = new Blob([header + rows], { type: 'text/csv' });
@@ -321,7 +343,7 @@
     /*******************
      * Start
      *******************/
-    window.onload = showAudioCheck;
+    window.onload = showParticipantEntry;
   </script>
 </body>
 </html>
