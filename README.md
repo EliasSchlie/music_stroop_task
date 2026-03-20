@@ -1,5 +1,19 @@
 # Music Stroop Task
 
-This project is part of a research study exploring how different types of background music affect reaction times. It features an interactive Stroop task implemented in HTML and JavaScript, designed to run directly in the browser.
+A browser-based Stroop task for studying how background music affects cognitive performance and reaction times.
 
-The goal is to collect user response data under various auditory conditions to analyze cognitive performance influenced by music.
+## What it does
+
+Participants complete a classic color-word Stroop task across 8 blocks (4 conditions × 2 rounds), each block played with different background audio:
+- Korean lyrics
+- English lyrics
+- Instrumental (no lyrics)
+- White noise (control)
+
+Block order is randomized per participant. Response times and accuracy are recorded and can be exported for analysis.
+
+## Usage
+
+Open `main.html` in any modern browser — no server or install needed. Audio files must be in the same directory.
+
+`song_mvp.html` is an earlier prototype.
